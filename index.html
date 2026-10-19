@@ -21,7 +21,7 @@
     }
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
     body { background: var(--bg); color: var(--text); padding: 16px; }
-    .container { max-width: 1550px; margin: 0 auto; }
+    .container { max-width: 1600px; margin: 0 auto; }
     header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px; }
     h1 { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.5px; color: var(--accent); }
     .status-badge { font-size: 0.75rem; padding: 5px 12px; border-radius: 6px; background: var(--card); border: 1px solid var(--border); color: var(--muted); font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
@@ -57,6 +57,9 @@
     tr:hover { background: var(--card-hover); }
     .highlight { color: var(--accent); font-weight: 800; }
     .green { color: var(--green); font-weight: 800; }
+    .badge-eye { font-weight: 800; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; }
+    .badge-g { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
+    .badge-c { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
     .btn-del { background: #ffffff; border: 1px solid var(--red); color: var(--red); border-radius: 4px; padding: 3px 8px; font-size: 0.7rem; cursor: pointer; font-weight: 600; }
     .btn-del:hover { background: var(--red); color: #ffffff; }
     .empty-state { padding: 32px; color: var(--muted); text-align: center; font-weight: 500; }
@@ -113,6 +116,7 @@
         <thead>
           <tr>
             <th>Date</th>
+            <th>G/C</th>
             <th>Opponent</th>
             <th>W/L</th>
             <th>Score</th>
@@ -151,6 +155,13 @@
         <form id="game-form" onsubmit="handleFormSubmit(event)">
           <div class="form-grid">
             <div class="form-group"><label>Date</label><input type="date" id="g-date" required /></div>
+            <div class="form-group">
+              <label>G / C</label>
+              <select id="g-gc">
+                <option value="G">Glasses (G)</option>
+                <option value="C">Contacts (C)</option>
+              </select>
+            </div>
             <div class="form-group"><label>Opponent</label><input type="text" id="g-opp" placeholder="Opponent" required /></div>
             <div class="form-group">
               <label>Result</label>
@@ -189,6 +200,20 @@
     };
     let activeSeasonIndex = 0;
 
+    function applyHistoricalGlassesDefaults() {
+      if (state && Array.isArray(state.seasons)) {
+        state.seasons.forEach(season => {
+          if (Array.isArray(season.games)) {
+            season.games.forEach(g => {
+              if (!g.glassesOrContacts && !g.gc) {
+                g.glassesOrContacts = "G";
+              }
+            });
+          }
+        });
+      }
+    }
+
     async function loadData() {
       setStatus("Syncing from Drive...");
       try {
@@ -196,6 +221,7 @@
         const data = await res.json();
         if (data && Array.isArray(data.seasons)) {
           state = data;
+          applyHistoricalGlassesDefaults();
           localStorage.setItem('cayden_games_data', JSON.stringify(state));
           setStatus("Synced with Drive");
         } else {
@@ -210,7 +236,10 @@
     function fallbackLocal(msg) {
       const local = localStorage.getItem('cayden_games_data');
       if (local) {
-        try { state = JSON.parse(local); } catch(e){}
+        try {
+          state = JSON.parse(local);
+          applyHistoricalGlassesDefaults();
+        } catch(e){}
       }
       setStatus(msg);
     }
@@ -297,7 +326,7 @@
       tabsList.innerHTML = '';
 
       if (!state.seasons || state.seasons.length === 0) {
-        document.getElementById('games-body').innerHTML = `<tr><td colspan="18" class="empty-state">No season tabs created yet. Click "➕ New Tab" to add one!</td></tr>`;
+        document.getElementById('games-body').innerHTML = `<tr><td colspan="19" class="empty-state">No season tabs created yet. Click "➕ New Tab" to add one!</td></tr>`;
         document.getElementById('stats-summary').innerHTML = '';
         return;
       }
@@ -322,7 +351,7 @@
       tbody.innerHTML = '';
 
       if (games.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="18" class="empty-state">No games logged in "${currentSeason.seasonName}".</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="19" class="empty-state">No games logged in "${currentSeason.seasonName}".</td></tr>`;
         document.getElementById('stats-summary').innerHTML = '';
         return;
       }
@@ -349,7 +378,6 @@
         const ftm = Number(g.ftm) || 0;
         const fta = Number(g.fta) || 0;
 
-        // Honor exact manual trueShots if present in JSON:
         let trueShots = 0;
         if (g.trueShots !== undefined && g.trueShots !== null && g.trueShots !== '') {
           trueShots = Number(g.trueShots);
@@ -361,6 +389,11 @@
         if (g.plusMinus !== undefined && g.plusMinus !== null && g.plusMinus !== '') {
           pmVal = parseFloat(String(g.plusMinus).replace('+', '')) || 0;
         }
+
+        // Standardize glasses / contacts flag
+        const rawGC = (g.glassesOrContacts || g.gc || 'G').toUpperCase();
+        const gcVal = rawGC === 'C' ? 'C' : 'G';
+        const gcBadge = gcVal === 'C' ? `<span class="badge-eye badge-c">C</span>` : `<span class="badge-eye badge-g">G</span>`;
 
         totals.min += minutes;
         totals.pts += pts;
@@ -385,6 +418,7 @@
         const tr = document.createElement('tr');
         tr.innerHTML = `
           <td>${g.date || '-'}</td>
+          <td>${gcBadge}</td>
           <td style="font-weight:700;">${g.opponent || '-'}</td>
           <td style="color:${g.result === 'W' ? 'var(--green)' : 'var(--red)'}; font-weight:800;">${g.result || '-'}</td>
           <td>${g.score || '-'}</td>
@@ -452,6 +486,7 @@
 
       const newGame = {
         date: document.getElementById('g-date').value,
+        glassesOrContacts: document.getElementById('g-gc').value,
         opponent: document.getElementById('g-opp').value,
         result: document.getElementById('g-res').value,
         score: document.getElementById('g-score').value,
@@ -488,10 +523,16 @@
           state.seasons.push({ seasonName: "New Season", games: [] });
           activeSeasonIndex = 0;
         }
+
+        const cleanGame = (g) => {
+          if (!g.glassesOrContacts && !g.gc) g.glassesOrContacts = "G";
+          return g;
+        };
+
         if (Array.isArray(parsed)) {
-          state.seasons[activeSeasonIndex].games = parsed;
+          state.seasons[activeSeasonIndex].games = parsed.map(cleanGame);
         } else {
-          state.seasons[activeSeasonIndex].games.unshift(parsed);
+          state.seasons[activeSeasonIndex].games.unshift(cleanGame(parsed));
         }
         render();
         saveData();
