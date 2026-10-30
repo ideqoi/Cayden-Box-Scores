@@ -132,6 +132,8 @@
             <th>3PM-A</th>
             <th>FTM-A</th>
             <th>True Shots</th>
+            <th title="True Shots / minutes">TS/Min</th>
+            <th title="True Shots per 32 minutes">TS/32</th>
             <th>+/-</th>
             <th>Action</th>
           </tr>
@@ -351,7 +353,7 @@
       tbody.innerHTML = '';
 
       if (games.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="19" class="empty-state">No games logged in "${currentSeason.seasonName}".</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="21" class="empty-state">No games logged in "${currentSeason.seasonName}".</td></tr>`;
         document.getElementById('stats-summary').innerHTML = '';
         return;
       }
@@ -434,6 +436,8 @@
           <td>${threePm}/${threePa}</td>
           <td>${ftm}/${fta}</td>
           <td class="green">${trueShots}</td>
+          <td>${minutes>0?(trueShots/minutes).toFixed(2):'-'}</td>
+          <td>${minutes>0?((trueShots/minutes)*32).toFixed(1):'-'}</td>
           <td>${g.plusMinus || '-'}</td>
           <td><button class="btn-del" onclick="deleteGame(${idx})">✕ Delete</button></td>
         `;
@@ -469,6 +473,8 @@
         <div class="stat-card"><div class="label">FT%</div><div class="val" style="color:var(--green)">${ftPct}</div></div>
         <div class="stat-card"><div class="label">Avg +/-</div><div class="val" style="color:${avgPm >= 0 ? 'var(--green)' : 'var(--red)'}">${avgPmStr}</div></div>
         <div class="stat-card"><div class="label">True Shots/G</div><div class="val" style="color:var(--accent)">${(totals.trueShots / n).toFixed(1)}</div></div>
+        <div class="stat-card"><div class="label">TS/Min</div><div class="val">${totals.min>0?(totals.trueShots/totals.min).toFixed(2):'-'}</div></div>
+        <div class="stat-card"><div class="label">TS/32</div><div class="val" style="color:var(--accent)">${totals.min>0?((totals.trueShots/totals.min)*32).toFixed(1):'-'}</div></div>
       `;
     }
 
